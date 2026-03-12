@@ -1,73 +1,70 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { TwitterApi } from "twitter-api-v2";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
-function generateTimes(count: number) {
-  const startHour = 13;
-  const endHour = 24;
-  const minGap = 60;
+const twitter = new TwitterApi({
+  appKey: process.env.X_API_KEY!,
+  appSecret: process.env.X_API_SECRET!,
+  accessToken: process.env.X_ACCESS_TOKEN!,
+  accessSecret: process.env.X_ACCESS_TOKEN_SECRET!,
+});
 
-  const now = new Date();
+const client = twitter.readWrite;
 
-  const start = new Date(now);
-  start.setHours(startHour, 0, 0, 0);
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { draftId } = body;
 
-  const end = new Date(now);
-  end.setHours(endHour, 0, 0, 0);
-
-  const startMinutes = start.getHours() * 60;
-  const endMinutes = end.getHours() * 60;
-
-  const times: number[] = [];
-
-  while (times.length < count) {
-    const t =
-      Math.floor(Math.random() * (endMinutes - startMinutes)) + startMinutes;
-
-    if (times.every((x) => Math.abs(x - t) >= minGap)) {
-      times.push(t);
-    }
-  }
-
-  return times.sort((a, b) => a - b);
-}
-
-export async function POST() {
-  const { data: drafts } = await supabaseAdmin
-    .from("drafts")
-    .select("*")
-    .eq("status", "approved");
-
-  if (!drafts || drafts.length === 0) {
-    return NextResponse.json({ success: true });
-  }
-
-  const times = generateTimes(drafts.length);
-
-  const now = new Date();
-
-  for (let i = 0; i < drafts.length; i++) {
-    const minutes = times[i];
-    const hour = Math.floor(minutes / 60);
-    const minute = minutes % 60;
-
-    const date = new Date();
-
-    date.setHours(hour, minute, 0, 0);
-
-    if (date < now) {
-      date.setDate(date.getDate() + 1);
+    if (!draftId) {
+      return NextResponse.json(
+        { error: "draftId is required." },
+        { status: 400 }
+      );
     }
 
-    await supabaseAdmin
+    const { data: tweet, error: fetchError } = await supabaseAdmin
+      .from("drafts")
+      .select("*")
+      .eq("id", draftId)
+      .single();
+
+    if (fetchError || !tweet) {
+      return NextResponse.json(
+        { error: "Tweet not found." },
+        { status: 404 }
+      );
+    }
+
+    const posted = await client.v1.tweet(tweet.tweet_text);
+
+    const { error: updateError } = await supabaseAdmin
       .from("drafts")
       .update({
-        status: "scheduled",
-        scheduled_for: date.toISOString(),
+        status: "posted",
+        tweet_id: posted.id_str,
       })
-      .eq("id", drafts[i].id);
-  }
+      .eq("id", draftId);
 
-  return NextResponse.json({ success: true });
+    if (updateError) {
+      return NextResponse.json(
+        { error: "Tweet posted but database update failed." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      tweet_id: posted.id_str,
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        error: err?.data?.detail || err?.message || "Failed to post tweet now.",
+      },
+      { status: 500 }
+    );
+  }
 }
