@@ -1,18 +1,24 @@
 import "./globals.css";
 import Link from "next/link";
+import Image from "next/image";
 import LogoutButton from "@/components/LogoutButton";
 
 export const metadata = {
-  title: "AI X Manager",
+  title: "flow",
   description: "Manage AI-generated tweets",
 };
 
-const linkStyle = {
-  color: "#fff",
+const navLinkStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "12px 14px",
+  borderRadius: "9999px",
+  color: "#B9B9C8",
+  background: "transparent",
+  border: "1px solid transparent",
   textDecoration: "none",
-  padding: "10px 12px",
-  borderRadius: "8px",
-  display: "block",
+  transition: "all 0.18s ease",
 };
 
 export default function RootLayout({
@@ -22,54 +28,103 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily: "Arial, sans-serif",
-          background: "#f7f7f8",
-        }}
-      >
-        <div style={{ display: "flex", minHeight: "100vh" }}>
+      <body>
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            background: "#101114",
+          }}
+        >
           <aside
             style={{
-              width: 240,
-              background: "#111827",
-              color: "#fff",
-              padding: 20,
-              boxSizing: "border-box",
+              width: 260,
+              padding: 18,
+              borderRight: "1px solid #22242D",
+              background: "#101114",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
             }}
           >
-            <h2 style={{ marginTop: 0, marginBottom: 24 }}>Tweetflow</h2>
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "8px 6px 18px 6px",
+                }}
+              >
+                <Image
+                  src="/flow-logo.png"
+                  alt="flow logo"
+                  width={132}
+                  height={40}
+                  style={{
+                    height: 40,
+                    width: "auto",
+                    objectFit: "contain",
+                  }}
+                  priority
+                />
+              </div>
 
-            <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <Link href="/" style={linkStyle}>
-                Manager
-              </Link>
-              <Link href="/queue" style={linkStyle}>
-                Queue
-              </Link>
-              <Link href="/scheduled" style={linkStyle}>
-                Scheduled
-              </Link>
-              <Link href="/posted" style={linkStyle}>
-                Posted
-              </Link>
-              <Link href="/analytics" style={linkStyle}>
-                Analytics
-              </Link>
-            </nav>
+              <nav
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <Link href="/" style={navLinkStyle}>
+                  Manager
+                </Link>
 
-            <LogoutButton />
+                <Link href="/queue" style={navLinkStyle}>
+                  Queue
+                </Link>
+
+                <Link href="/scheduled" style={navLinkStyle}>
+                  Scheduled
+                </Link>
+
+                <Link href="/posted" style={navLinkStyle}>
+                  Posted
+                </Link>
+
+                <Link href="/analytics" style={navLinkStyle}>
+                  Analytics
+                </Link>
+              </nav>
+            </div>
+
+            <div
+              style={{
+                paddingTop: 20,
+                borderTop: "1px solid #22242D",
+              }}
+            >
+              <LogoutButton />
+            </div>
           </aside>
 
           <main
             style={{
               flex: 1,
-              padding: 32,
-              boxSizing: "border-box",
+              padding: 28,
+              background: "#101114",
             }}
           >
-            {children}
+            <div
+              style={{
+                minHeight: "calc(100vh - 56px)",
+                borderRadius: 24,
+                background: "#101114",
+              }}
+            >
+              {children}
+            </div>
           </main>
         </div>
       </body>
