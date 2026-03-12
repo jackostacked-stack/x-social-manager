@@ -28,17 +28,21 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoginPage = request.nextUrl.pathname === "/login";
+  const pathname = request.nextUrl.pathname;
+
+  const isLoginPage = pathname === "/login";
+  const isResetPasswordPage = pathname === "/reset-password";
+
   const isPublicAsset =
-    request.nextUrl.pathname.startsWith("/_next") ||
-    request.nextUrl.pathname.startsWith("/favicon") ||
-    request.nextUrl.pathname.includes(".");
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.includes(".");
 
   if (isPublicAsset) {
     return response;
   }
 
-  if (!user && !isLoginPage) {
+  if (!user && !isLoginPage && !isResetPasswordPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
