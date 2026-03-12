@@ -223,36 +223,80 @@ export default function ManagerPage() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0, color: "#111827" }}>Manager</h1>
-
       <div
         style={{
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 16,
-          marginTop: 16,
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
           marginBottom: 24,
         }}
       >
-        <h3 style={{ marginTop: 0 }}>Compose Tweet</h3>
+        <div>
+          <h1
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              color: "#FCFCFC",
+              fontSize: 34,
+              lineHeight: 1.05,
+            }}
+          >
+            Manager
+          </h1>
+
+          <p
+            style={{
+              margin: 0,
+              color: "#B9B9C8",
+              fontSize: 15,
+            }}
+          >
+            Generate, compose, edit, and approve tweets before they enter your queue.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={generateTweets} disabled={loading} style={brandButton}>
+            {loading ? "Generating..." : "Generate Tweets"}
+          </button>
+
+          <button onClick={resetManager} style={softDangerButton}>
+            Reset Manager
+          </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 14,
+          marginBottom: 24,
+        }}
+      >
+        <StatCard label="Pending" value={pending.length} />
+        <StatCard label="Approved" value={approved.length} />
+        <StatCard label="Scheduled" value={scheduled.length} />
+        <StatCard label="Posted" value={posted.length} />
+      </div>
+
+      <div style={panelCard}>
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={sectionTitle}>Compose Tweet</h3>
+          <p style={sectionSubtitle}>
+            Write a custom tweet manually and send it straight to the queue.
+          </p>
+        </div>
 
         <textarea
           value={manualTweet}
           onChange={(e) => setManualTweet(e.target.value)}
           placeholder="Write a tweet..."
-          style={{
-            width: "100%",
-            minHeight: 100,
-            padding: 12,
-            borderRadius: 8,
-            border: "1px solid #d1d5db",
-            marginBottom: 12,
-            resize: "vertical",
-          }}
+          style={darkTextarea}
         />
 
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 14 }}>
           <input
             type="file"
             accept="image/*,video/*"
@@ -269,112 +313,70 @@ export default function ManagerPage() {
                 setManualMediaType(null);
               }
             }}
+            style={fileInput}
           />
 
           {manualMediaPreview && (
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 12 }}>
               {manualMediaType === "image" ? (
                 <img
                   src={manualMediaPreview}
                   alt="Manual tweet media preview"
-                  style={{
-                    maxWidth: 220,
-                    borderRadius: 8,
-                    border: "1px solid #e5e7eb",
-                  }}
+                  style={mediaPreview}
                 />
               ) : (
                 <video
                   src={manualMediaPreview}
                   controls
-                  style={{
-                    maxWidth: 220,
-                    borderRadius: 8,
-                    border: "1px solid #e5e7eb",
-                  }}
+                  style={mediaPreview}
                 />
               )}
             </div>
           )}
         </div>
 
-        <button
-          onClick={createManualDraft}
-          style={{
-            background: "#111827",
-            color: "#fff",
-            border: "none",
-            padding: "10px 16px",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
-        >
+        <button onClick={createManualDraft} style={brandButton}>
           Add to Queue
-        </button>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <div style={cardStyle}>
-          <div style={labelStyle}>Pending</div>
-          <div style={valueStyle}>{pending.length}</div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={labelStyle}>Approved</div>
-          <div style={valueStyle}>{approved.length}</div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={labelStyle}>Scheduled</div>
-          <div style={valueStyle}>{scheduled.length}</div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={labelStyle}>Posted</div>
-          <div style={valueStyle}>{posted.length}</div>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 24, display: "flex", gap: 12 }}>
-        <button onClick={generateTweets} disabled={loading} style={primaryButton}>
-          {loading ? "Generating..." : "Generate Tweets"}
-        </button>
-
-        <button onClick={resetManager} style={dangerSoftButton}>
-          Reset Manager
         </button>
       </div>
 
       {error && (
         <div
           style={{
-            marginBottom: 20,
-            padding: 12,
-            borderRadius: 8,
-            background: "#fee2e2",
-            color: "#991b1b",
+            marginTop: 18,
+            marginBottom: 18,
+            padding: 14,
+            borderRadius: 18,
+            background: "rgba(175,18,60,0.14)",
+            border: "1px solid rgba(175,18,60,0.35)",
+            color: "#FCFCFC",
           }}
         >
           {error}
         </div>
       )}
 
-      <h2 style={{ color: "#111827" }}>Draft Review</h2>
+      <div style={{ marginTop: 26, marginBottom: 14 }}>
+        <h2 style={sectionTitle}>Draft Review</h2>
+        <p style={sectionSubtitle}>
+          Refine generated tweets, attach media, and approve only the strongest ones.
+        </p>
+      </div>
 
       {pending.length === 0 && (
-        <div style={emptyStyle}>No drafts waiting for review.</div>
+        <div style={emptyStateCard}>No drafts waiting for review.</div>
       )}
 
       {pending.map((draft) => (
-        <div key={draft.id} style={tweetCard}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div key={draft.id} style={draftCard}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 14,
+            }}
+          >
             <div style={{ flex: 1 }}>
               <textarea
                 value={draft.tweet_text}
@@ -387,18 +389,10 @@ export default function ManagerPage() {
                     )
                   );
                 }}
-                style={{
-                  width: "100%",
-                  minHeight: 80,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: "1px solid #d1d5db",
-                  marginBottom: 12,
-                  resize: "vertical",
-                }}
+                style={darkTextarea}
               />
 
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 14 }}>
                 <input
                   type="file"
                   accept="image/*,video/*"
@@ -408,36 +402,29 @@ export default function ManagerPage() {
                       uploadMedia(draft.id, file);
                     }
                   }}
+                  style={fileInput}
                 />
 
                 {draft.media_url && (
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ marginTop: 12 }}>
                     {draft.media_type === "image" ? (
                       <img
                         src={draft.media_url}
                         alt="Tweet media"
-                        style={{
-                          maxWidth: 220,
-                          borderRadius: 8,
-                          border: "1px solid #e5e7eb",
-                        }}
+                        style={mediaPreview}
                       />
                     ) : (
                       <video
                         src={draft.media_url}
                         controls
-                        style={{
-                          maxWidth: 220,
-                          borderRadius: 8,
-                          border: "1px solid #e5e7eb",
-                        }}
+                        style={mediaPreview}
                       />
                     )}
                   </div>
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   onClick={async () => {
                     await fetch("/api/update-draft", {
@@ -460,14 +447,14 @@ export default function ManagerPage() {
 
                 <button
                   onClick={() => updateStatus(draft.id, "approved")}
-                  style={primaryButton}
+                  style={brandButton}
                 >
                   Approve
                 </button>
 
                 <button
                   onClick={() => updateStatus(draft.id, "rejected")}
-                  style={secondaryButton}
+                  style={ghostButton}
                 >
                   Reject
                 </button>
@@ -476,7 +463,7 @@ export default function ManagerPage() {
 
             <button
               onClick={() => deleteDraft(draft.id)}
-              style={binButton}
+              style={deleteIconButton}
               title="Delete tweet"
             >
               🗑
@@ -488,75 +475,157 @@ export default function ManagerPage() {
   );
 }
 
-const cardStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 16,
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div
+      style={{
+        background: "#18181F",
+        border: "1px solid #22242D",
+        borderRadius: 20,
+        padding: 18,
+        boxShadow:
+          "0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          color: "#787A8D",
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          fontSize: 30,
+          fontWeight: 700,
+          color: "#FCFCFC",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+const panelCard: React.CSSProperties = {
+  background: "#18181F",
+  border: "1px solid #22242D",
+  borderRadius: 20,
+  padding: 20,
+  boxShadow:
+    "0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22)",
 };
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 14,
-  color: "#6b7280",
-  marginBottom: 8,
-};
-
-const valueStyle: React.CSSProperties = {
-  fontSize: 28,
-  fontWeight: 700,
-  color: "#111827",
-};
-
-const tweetCard: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 16,
+const draftCard: React.CSSProperties = {
+  background: "#18181F",
+  border: "1px solid #22242D",
+  borderRadius: 20,
+  padding: 18,
   marginBottom: 14,
+  boxShadow:
+    "0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22)",
 };
 
-const primaryButton: React.CSSProperties = {
-  background: "#111827",
-  color: "#ffffff",
+const emptyStateCard: React.CSSProperties = {
+  background: "#18181F",
+  border: "1px solid #22242D",
+  borderRadius: 20,
+  padding: 18,
+  color: "#787A8D",
+};
+
+const sectionTitle: React.CSSProperties = {
+  marginTop: 0,
+  marginBottom: 6,
+  color: "#FCFCFC",
+  fontSize: 22,
+};
+
+const sectionSubtitle: React.CSSProperties = {
+  margin: 0,
+  color: "#B9B9C8",
+  fontSize: 14,
+  lineHeight: 1.5,
+};
+
+const darkTextarea: React.CSSProperties = {
+  width: "100%",
+  minHeight: 110,
+  padding: 14,
+  borderRadius: 18,
+  border: "1px solid #22242D",
+  background: "#101114",
+  color: "#FCFCFC",
+  marginBottom: 14,
+  resize: "vertical",
+};
+
+const fileInput: React.CSSProperties = {
+  width: "100%",
+  padding: "12px 14px",
+  borderRadius: 16,
+  background: "#101114",
+  border: "1px solid #22242D",
+  color: "#B9B9C8",
+};
+
+const mediaPreview: React.CSSProperties = {
+  maxWidth: 240,
+  borderRadius: 18,
+  border: "1px solid #22242D",
+};
+
+const brandButton: React.CSSProperties = {
+  background: "#6D8CFF",
+  color: "#FCFCFC",
   border: "none",
-  borderRadius: 8,
-  padding: "10px 14px",
+  borderRadius: 9999,
+  padding: "12px 18px",
   cursor: "pointer",
+  fontWeight: 700,
+  boxShadow: "0 10px 30px rgba(109,140,255,0.18)",
 };
 
 const secondaryButton: React.CSSProperties = {
-  background: "#e5e7eb",
-  color: "#111827",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 14px",
+  background: "#22242D",
+  color: "#FCFCFC",
+  border: "1px solid #2d3040",
+  borderRadius: 9999,
+  padding: "12px 18px",
   cursor: "pointer",
+  fontWeight: 600,
 };
 
-const dangerSoftButton: React.CSSProperties = {
-  background: "#fee2e2",
-  color: "#991b1b",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 14px",
+const ghostButton: React.CSSProperties = {
+  background: "transparent",
+  color: "#B9B9C8",
+  border: "1px solid #22242D",
+  borderRadius: 9999,
+  padding: "12px 18px",
   cursor: "pointer",
+  fontWeight: 600,
 };
 
-const binButton: React.CSSProperties = {
-  background: "#dc2626",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 8,
-  width: 40,
-  height: 40,
+const softDangerButton: React.CSSProperties = {
+  background: "rgba(175,18,60,0.12)",
+  color: "#FCFCFC",
+  border: "1px solid rgba(175,18,60,0.3)",
+  borderRadius: 9999,
+  padding: "12px 18px",
+  cursor: "pointer",
+  fontWeight: 600,
+};
+
+const deleteIconButton: React.CSSProperties = {
+  background: "rgba(175,18,60,0.16)",
+  color: "#FCFCFC",
+  border: "1px solid rgba(175,18,60,0.3)",
+  borderRadius: 18,
+  width: 46,
+  height: 46,
   cursor: "pointer",
   flexShrink: 0,
-};
-
-const emptyStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 16,
-  color: "#6b7280",
 };
