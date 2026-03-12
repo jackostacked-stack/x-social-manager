@@ -136,6 +136,64 @@ export default function ManagerPage() {
       <h1 style={{ marginTop: 0, color: "#111827" }}>Manager</h1>
 
       <div
+  style={{
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 24,
+  }}
+>
+  <h3 style={{ marginTop: 0 }}>Compose Tweet</h3>
+
+  <textarea
+    id="manualTweet"
+    placeholder="Write a tweet..."
+    style={{
+      width: "100%",
+      minHeight: 100,
+      padding: 12,
+      borderRadius: 8,
+      border: "1px solid #d1d5db",
+      marginBottom: 12,
+      resize: "vertical",
+    }}
+  />
+
+  <button
+    onClick={async () => {
+      const text = (
+        document.getElementById("manualTweet") as HTMLTextAreaElement
+      ).value;
+
+      if (!text) return;
+
+      await fetch("/api/manual-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tweet_text: text,
+        }),
+      });
+
+      location.reload();
+    }}
+    style={{
+      background: "#111827",
+      color: "#fff",
+      border: "none",
+      padding: "10px 16px",
+      borderRadius: 8,
+      cursor: "pointer",
+    }}
+  >
+    Add to Queue
+  </button>
+</div>
+<div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
