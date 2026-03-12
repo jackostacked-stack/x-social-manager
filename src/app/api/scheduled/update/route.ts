@@ -3,16 +3,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
-function localDatetimeToUTC(value: string) {
-  const parsed = new Date(value);
-
-  if (isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -25,9 +15,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const parsedDate = localDatetimeToUTC(scheduled_for);
+    const parsedDate = new Date(scheduled_for);
 
-    if (!parsedDate) {
+    if (isNaN(parsedDate.getTime())) {
       return NextResponse.json(
         { error: "Invalid scheduled_for date." },
         { status: 400 }

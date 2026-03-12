@@ -105,11 +105,14 @@ export default function ScheduledPage() {
 
   function startEditing(tweet: Draft) {
     setEditingId(tweet.id);
+
+    const value = tweet.scheduled_for
+      ? new Date(tweet.scheduled_for).toISOString().slice(0, 16)
+      : "";
+
     setEditedTime((prev) => ({
       ...prev,
-      [tweet.id]: tweet.scheduled_for
-        ? new Date(tweet.scheduled_for).toISOString().slice(0, 16)
-        : "",
+      [tweet.id]: value,
     }));
   }
 
@@ -155,7 +158,7 @@ export default function ScheduledPage() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Scheduled</h1>
+      <h1 style={{ marginTop: 0 }}>Scheduled Tweets</h1>
 
       <div style={{ marginBottom: 20 }}>
         <button
@@ -217,7 +220,15 @@ export default function ScheduledPage() {
           </p>
 
           {editingId === tweet.id ? (
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                marginBottom: 12,
+                flexWrap: "wrap",
+              }}
+            >
               <input
                 type="datetime-local"
                 value={editedTime[tweet.id] || ""}
@@ -259,11 +270,16 @@ export default function ScheduledPage() {
             </div>
           ) : (
             <div style={{ marginBottom: 12, color: "#6b7280" }}>
-              {tweet.scheduled_for || "No time set"}
+              {tweet.scheduled_for
+                ? new Date(tweet.scheduled_for).toLocaleString("en-GB", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
+                : "No time set"}
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               onClick={() => startEditing(tweet)}
               style={{
