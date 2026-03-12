@@ -255,9 +255,27 @@ export default function ManagerPage() {
       {pending.map((draft) => (
         <div key={draft.id} style={tweetCard}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-            <p style={{ marginTop: 0, marginBottom: 16, whiteSpace: "pre-wrap", color: "#111827", flex: 1 }}>
-              {draft.tweet_text}
-            </p>
+            <textarea
+  value={draft.tweet_text}
+  onChange={(e) => {
+    const newText = e.target.value;
+
+    setDrafts((prev) =>
+      prev.map((d) =>
+        d.id === draft.id ? { ...d, tweet_text: newText } : d
+      )
+    );
+  }}
+  style={{
+    width: "100%",
+    minHeight: 80,
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    marginBottom: 12,
+    resize: "vertical",
+  }}
+/>
 
             <button
               onClick={() => deleteDraft(draft.id)}
@@ -269,20 +287,40 @@ export default function ManagerPage() {
           </div>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={() => updateStatus(draft.id, "approved")}
-              style={primaryButton}
-            >
-              Approve
-            </button>
+  <button
+    onClick={async () => {
+      await fetch("/api/update-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          draftId: draft.id,
+          tweet_text: draft.tweet_text,
+        }),
+      });
 
-            <button
-              onClick={() => updateStatus(draft.id, "rejected")}
-              style={secondaryButton}
-            >
-              Reject
-            </button>
-          </div>
+      await loadDrafts();
+    }}
+    style={secondaryButton}
+  >
+    Save
+  </button>
+
+  <button
+    onClick={() => updateStatus(draft.id, "approved")}
+    style={primaryButton}
+  >
+    Approve
+  </button>
+
+  <button
+    onClick={() => updateStatus(draft.id, "rejected")}
+    style={secondaryButton}
+  >
+    Reject
+  </button>
+</div>
         </div>
       ))}
     </div>
