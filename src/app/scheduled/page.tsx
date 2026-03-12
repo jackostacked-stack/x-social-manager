@@ -132,41 +132,44 @@ export default function ScheduledPage() {
     setEditingId(null);
   }
 
-  async function saveTime(id: number) {
-    setError("");
+async function saveTime(id: number) {
+  setError("");
 
-    try {
-      const value = editedTime[id];
+  try {
+    const value = editedTime[id];
 
-      if (!value) {
-        setError("Please choose a valid date and time.");
-        return;
-      }
-
-      const res = await fetch("/api/scheduled/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          draftId: id,
-          scheduled_for: value,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Failed to save scheduled time.");
-        return;
-      }
-
-      setEditingId(null);
-      await loadScheduled();
-    } catch {
-      setError("Failed to save scheduled time.");
+    if (!value) {
+      setError("Please choose a valid date and time.");
+      return;
     }
+
+    // convert the local datetime input into proper UTC ISO
+    const utcISO = new Date(value).toISOString();
+
+    const res = await fetch("/api/scheduled/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        draftId: id,
+        scheduled_for: utcISO,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || "Failed to save scheduled time.");
+      return;
+    }
+
+    setEditingId(null);
+    await loadScheduled();
+  } catch {
+    setError("Failed to save scheduled time.");
   }
+}
 
   return (
     <div>
