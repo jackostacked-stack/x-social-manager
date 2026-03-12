@@ -6,10 +6,11 @@ type Draft = {
   id: number;
   tweet_text: string;
   status: string;
+  tweet_id?: string | null;
+  views?: number;
   likes?: number;
   reposts?: number;
   replies?: number;
-  tweet_id?: string | null;
 };
 
 export default function PostedPage() {
@@ -85,15 +86,16 @@ export default function PostedPage() {
           <div
             style={{
               display: "flex",
-              gap: 16,
+              gap: 20,
               flexWrap: "wrap",
               color: "#6b7280",
+              marginTop: 10,
             }}
           >
+            <span>Views: {tweet.views || 0}</span>
             <span>Likes: {tweet.likes || 0}</span>
             <span>Reposts: {tweet.reposts || 0}</span>
             <span>Replies: {tweet.replies || 0}</span>
-            <span>Tweet ID: {tweet.tweet_id || "—"}</span>
           </div>
         </div>
       ))}

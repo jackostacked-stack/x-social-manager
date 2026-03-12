@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Draft = {
   id: number;
-  status: string;
+  tweet_text: string;
+  views?: number;
   likes?: number;
   reposts?: number;
   replies?: number;
@@ -12,28 +13,42 @@ type Draft = {
 
 export default function AnalyticsPage() {
   const [tweets, setTweets] = useState<Draft[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  async function loadAnalytics() {
+  async function loadData() {
     const res = await fetch("/api/drafts");
     const data = await res.json();
+
     const posted = (data.drafts || []).filter(
-      (d: Draft) => d.status === "posted"
+      (d: any) => d.status === "posted"
     );
+
     setTweets(posted);
+    setLoading(false);
   }
 
   useEffect(() => {
-    loadAnalytics();
+    loadData();
   }, []);
 
-  const totals = useMemo(() => {
-    return {
-      tweets: tweets.length,
-      likes: tweets.reduce((sum, t) => sum + (t.likes || 0), 0),
-      reposts: tweets.reduce((sum, t) => sum + (t.reposts || 0), 0),
-      replies: tweets.reduce((sum, t) => sum + (t.replies || 0), 0),
-    };
-  }, [tweets]);
+  if (loading) {
+    return <p>Loading analytics...</p>;
+  }
+
+  const totalViews = tweets.reduce((sum, t) => sum + (t.views || 0), 0);
+  const totalLikes = tweets.reduce((sum, t) => sum + (t.likes || 0), 0);
+  const totalReposts = tweets.reduce((sum, t) => sum + (t.reposts || 0), 0);
+  const totalReplies = tweets.reduce((sum, t) => sum + (t.replies || 0), 0);
+
+  const bestTweet =
+    tweets.sort((a, b) => (b.views || 0) - (a.views || 0))[0];
+
+  const avgEngagement =
+    tweets.length === 0
+      ? 0
+      : Math.round(
+          (totalLikes + totalReplies + totalReposts) / tweets.length
+        );
 
   return (
     <div>
@@ -42,48 +57,74 @@ export default function AnalyticsPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 16,
+          gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
+          gap: 20,
+          marginTop: 20,
         }}
       >
-        <div style={cardStyle}>
-          <div style={labelStyle}>Posted Tweets</div>
-          <div style={valueStyle}>{totals.tweets}</div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={labelStyle}>Total Likes</div>
-          <div style={valueStyle}>{totals.likes}</div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={labelStyle}>Total Reposts</div>
-          <div style={valueStyle}>{totals.reposts}</div>
-        </div>
-
-        <div style={cardStyle}>
-          <div style={labelStyle}>Total Replies</div>
-          <div style={valueStyle}>{totals.replies}</div>
-        </div>
+        <Card title="Total Views" value={totalViews} />
+        <Card title="Total Likes" value={totalLikes} />
+        <Card title="Total Reposts" value={totalReposts} />
+        <Card title="Total Replies" value={totalReplies} />
+        <Card title="Average Engagement" value={avgEngagement} />
       </div>
+
+      {bestTweet && (
+        <div
+          style={{
+            marginTop: 40,
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 20,
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Best Performing Tweet</h2>
+
+          <p style={{ whiteSpace: "pre-wrap", color: "#111827" }}>
+            {bestTweet.tweet_text}
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 20,
+              marginTop: 10,
+              color: "#6b7280",
+            }}
+          >
+            <span>Views: {bestTweet.views || 0}</span>
+            <span>Likes: {bestTweet.likes || 0}</span>
+            <span>Reposts: {bestTweet.reposts || 0}</span>
+            <span>Replies: {bestTweet.replies || 0}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 16,
-};
+function Card({ title, value }: { title: string; value: number }) {
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 20,
+      }}
+    >
+      <div style={{ color: "#6b7280", marginBottom: 6 }}>{title}</div>
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 14,
-  color: "#6b7280",
-  marginBottom: 8,
-};
-
-const valueStyle: React.CSSProperties = {
-  fontSize: 28,
-  fontWeight: 700,
-};
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: "#111827",
+        }}
+      >
+        {value.toLocaleString()}
+      </div>
+    </div>
+  );
+}
