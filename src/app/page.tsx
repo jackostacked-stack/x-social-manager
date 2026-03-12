@@ -6,6 +6,8 @@ type Draft = {
   id: number;
   tweet_text: string;
   status: string;
+  media_url?: string | null;
+  media_type?: string | null;
 };
 
 export default function ManagerPage() {
@@ -125,6 +127,32 @@ export default function ManagerPage() {
       setError("Failed to reset manager.");
     }
   }
+
+  async function uploadMedia(draftId: number, file: File) {
+  setError("");
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("draftId", String(draftId));
+
+    const res = await fetch("/api/upload-media", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || "Failed to upload media.");
+      return;
+    }
+
+    await loadDrafts();
+  } catch {
+    setError("Failed to upload media.");
+  }
+}
 
   const pending = drafts.filter((d) => d.status === "pending");
   const approved = drafts.filter((d) => d.status === "approved");
@@ -285,7 +313,44 @@ export default function ManagerPage() {
               🗑
             </button>
           </div>
+<div style={{ marginBottom: 12 }}>
+  <input
+    type="file"
+    accept="image/*,video/*"
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        uploadMedia(draft.id, file);
+      }
+    }}
+  />
 
+  {draft.media_url && (
+    <div style={{ marginTop: 10 }}>
+      {draft.media_type === "image" ? (
+        <img
+          src={draft.media_url}
+          alt="Tweet media"
+          style={{
+            maxWidth: 220,
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+          }}
+        />
+      ) : (
+        <video
+          src={draft.media_url}
+          controls
+          style={{
+            maxWidth: 220,
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+          }}
+        />
+      )}
+    </div>
+  )}
+</div>
           <div style={{ display: "flex", gap: 10 }}>
   <button
     onClick={async () => {
