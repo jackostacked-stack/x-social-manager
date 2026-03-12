@@ -3,6 +3,10 @@
     {
       "path": "/api/post",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/metrics",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
