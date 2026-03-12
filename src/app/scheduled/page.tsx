@@ -272,6 +272,7 @@ export default function ScheduledPage() {
             <div style={{ marginBottom: 12, color: "#6b7280" }}>
               {tweet.scheduled_for
                 ? new Date(tweet.scheduled_for).toLocaleString("en-GB", {
+                    timeZone: "Europe/Berlin",
                     dateStyle: "medium",
                     timeStyle: "short",
                   })
