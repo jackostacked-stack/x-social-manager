@@ -61,18 +61,23 @@ async function runPostJob() {
         tweet.media_type
       );
 
-      posted = await client.v1.tweet(tweet.tweet_text, {
-        media_ids: mediaId,
+      posted = await client.v2.tweet({
+        text: tweet.tweet_text,
+        media: {
+          media_ids: [mediaId],
+        },
       });
     } else {
-      posted = await client.v1.tweet(tweet.tweet_text);
+      posted = await client.v2.tweet({
+        text: tweet.tweet_text,
+      });
     }
 
     await supabaseAdmin
       .from("drafts")
       .update({
         status: "posted",
-        tweet_id: posted.id_str,
+        tweet_id: posted.data.id,
       })
       .eq("id", tweet.id);
   }
@@ -84,11 +89,45 @@ async function runPostJob() {
 }
 
 export async function POST() {
-  const result = await runPostJob();
-  return NextResponse.json(result);
+  try {
+    const result = await runPostJob();
+
+    if ("error" in result) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
+    return NextResponse.json(result);
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        error:
+          err?.data?.detail ||
+          err?.message ||
+          "Posting failed.",
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET() {
-  const result = await runPostJob();
-  return NextResponse.json(result);
+  try {
+    const result = await runPostJob();
+
+    if ("error" in result) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
+    return NextResponse.json(result);
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        error:
+          err?.data?.detail ||
+          err?.message ||
+          "Posting failed.",
+      },
+      { status: 500 }
+    );
+  }
 }

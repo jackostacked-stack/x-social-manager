@@ -15,6 +15,7 @@ const client = twitter.readWrite;
 
 async function uploadMediaFromUrl(url: string, mediaType?: string | null) {
   const response = await fetch(url);
+
   if (!response.ok) {
     throw new Error("Failed to download media from storage.");
   }
@@ -67,18 +68,23 @@ export async function POST(req: NextRequest) {
         tweet.media_type
       );
 
-      posted = await client.v1.tweet(tweet.tweet_text, {
-        media_ids: mediaId,
+      posted = await client.v2.tweet({
+        text: tweet.tweet_text,
+        media: {
+          media_ids: [mediaId],
+        },
       });
     } else {
-      posted = await client.v1.tweet(tweet.tweet_text);
+      posted = await client.v2.tweet({
+        text: tweet.tweet_text,
+      });
     }
 
     const { error: updateError } = await supabaseAdmin
       .from("drafts")
       .update({
         status: "posted",
-        tweet_id: posted.id_str,
+        tweet_id: posted.data.id,
       })
       .eq("id", draftId);
 
@@ -91,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      tweet_id: posted.id_str,
+      tweet_id: posted.data.id,
     });
   } catch (err: any) {
     return NextResponse.json(
