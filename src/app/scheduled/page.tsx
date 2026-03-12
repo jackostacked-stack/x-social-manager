@@ -2,65 +2,315 @@
 
 import { useEffect, useState } from "react";
 
+type Draft = {
+  id: number;
+  tweet_text: string;
+  status: string;
+  scheduled_for: string | null;
+};
+
 export default function ScheduledPage() {
-  const [tweets, setTweets] = useState<any[]>([]);
+  const [tweets, setTweets] = useState<Draft[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editedTime, setEditedTime] = useState<Record<number, string>>({});
+  const [error, setError] = useState("");
 
-  async function load() {
-    const res = await fetch("/api/drafts");
-    const data = await res.json();
-
-    setTweets(data.drafts.filter((x: any) => x.status === "scheduled"));
+  async function loadScheduled() {
+    try {
+      const res = await fetch("/api/drafts");
+      const data = await res.json();
+      const scheduled = (data.drafts || []).filter(
+        (d: Draft) => d.status === "scheduled"
+      );
+      setTweets(scheduled);
+    } catch {
+      setError("Failed to load scheduled tweets.");
+    }
   }
 
   useEffect(() => {
-    load();
+    loadScheduled();
   }, []);
 
   async function postNow(id: number) {
-    await fetch("/api/post-now", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ draftId: id }),
-    });
+    setError("");
 
-    load();
+    try {
+      const res = await fetch("/api/post-now", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ draftId: id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to post tweet now.");
+        return;
+      }
+
+      await loadScheduled();
+    } catch {
+      setError("Failed to post tweet now.");
+    }
   }
 
-  async function updateTime(id: number, value: string) {
-    await fetch("/api/update-schedule", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        draftId: id,
-        scheduled_for: value,
-      }),
-    });
+  async function deleteScheduled(id: number) {
+    setError("");
+
+    try {
+      const res = await fetch("/api/scheduled/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ draftId: id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to delete scheduled tweet.");
+        return;
+      }
+
+      await loadScheduled();
+    } catch {
+      setError("Failed to delete scheduled tweet.");
+    }
+  }
+
+  async function resetScheduled() {
+    setError("");
+
+    try {
+      const res = await fetch("/api/scheduled/reset", {
+        method: "POST",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to reset scheduled tweets.");
+        return;
+      }
+
+      await loadScheduled();
+    } catch {
+      setError("Failed to reset scheduled tweets.");
+    }
+  }
+
+  function startEditing(tweet: Draft) {
+    setEditingId(tweet.id);
+    setEditedTime((prev) => ({
+      ...prev,
+      [tweet.id]: tweet.scheduled_for
+        ? new Date(tweet.scheduled_for).toISOString().slice(0, 16)
+        : "",
+    }));
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+  }
+
+  async function saveTime(id: number) {
+    setError("");
+
+    try {
+      const value = editedTime[id];
+
+      if (!value) {
+        setError("Please choose a valid date and time.");
+        return;
+      }
+
+      const res = await fetch("/api/scheduled/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          draftId: id,
+          scheduled_for: value,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to save scheduled time.");
+        return;
+      }
+
+      setEditingId(null);
+      await loadScheduled();
+    } catch {
+      setError("Failed to save scheduled time.");
+    }
   }
 
   return (
     <div>
-      <h1>Scheduled Tweets</h1>
+      <h1 style={{ marginTop: 0 }}>Scheduled</h1>
 
-      {tweets.map((t) => (
-        <div key={t.id} style={{ marginBottom: 20 }}>
-          <p>{t.tweet_text}</p>
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={resetScheduled}
+          style={{
+            background: "#fee2e2",
+            color: "#991b1b",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 14px",
+            cursor: "pointer",
+          }}
+        >
+          Reset Scheduled
+        </button>
+      </div>
 
-          <input
-            type="datetime-local"
-            defaultValue={t.scheduled_for?.slice(0, 16)}
-            onChange={(e) => updateTime(t.id, e.target.value)}
-          />
+      {error && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: 12,
+            borderRadius: 8,
+            background: "#fee2e2",
+            color: "#991b1b",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-          <button
-            style={{ marginLeft: 10 }}
-            onClick={() => postNow(t.id)}
-          >
-            Post Now
-          </button>
+      {tweets.length === 0 && (
+        <div
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 16,
+            color: "#6b7280",
+          }}
+        >
+          No scheduled tweets yet.
+        </div>
+      )}
+
+      {tweets.map((tweet) => (
+        <div
+          key={tweet.id}
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 14,
+          }}
+        >
+          <p style={{ marginTop: 0, whiteSpace: "pre-wrap", color: "#111827" }}>
+            {tweet.tweet_text}
+          </p>
+
+          {editingId === tweet.id ? (
+            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+              <input
+                type="datetime-local"
+                value={editedTime[tweet.id] || ""}
+                onChange={(e) =>
+                  setEditedTime((prev) => ({
+                    ...prev,
+                    [tweet.id]: e.target.value,
+                  }))
+                }
+              />
+
+              <button
+                onClick={() => saveTime(tweet.id)}
+                style={{
+                  background: "#111827",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+
+              <button
+                onClick={cancelEditing}
+                style={{
+                  background: "#e5e7eb",
+                  color: "#111827",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 12, color: "#6b7280" }}>
+  {tweet.scheduled_for
+    ? new Date(tweet.scheduled_for).toLocaleString("en-GB", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : "No time set"}
+</div>
+          )}
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={() => startEditing(tweet)}
+              style={{
+                background: "#e5e7eb",
+                color: "#111827",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Edit Time
+            </button>
+
+            <button
+              onClick={() => postNow(tweet.id)}
+              style={{
+                background: "#111827",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Post Now
+            </button>
+
+            <button
+              onClick={() => deleteScheduled(tweet.id)}
+              style={{
+                background: "#dc2626",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Delete
+            </button>
+          </div>
         </div>
       ))}
     </div>
