@@ -259,13 +259,8 @@ export default function ScheduledPage() {
             </div>
           ) : (
             <div style={{ marginBottom: 12, color: "#6b7280" }}>
-  {tweet.scheduled_for
-    ? new Date(tweet.scheduled_for).toLocaleString("en-GB", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : "No time set"}
-</div>
+              {tweet.scheduled_for || "No time set"}
+            </div>
           )}
 
           <div style={{ display: "flex", gap: 10 }}>
