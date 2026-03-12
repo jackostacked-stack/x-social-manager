@@ -6,6 +6,8 @@ type Draft = {
   id: number;
   tweet_text: string;
   status: string;
+  media_url?: string | null;
+  media_type?: string | null;
 };
 
 export default function QueuePage() {
@@ -106,26 +108,63 @@ export default function QueuePage() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0, color: "#111827" }}>Queue</h1>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              marginTop: 0,
+              marginBottom: 8,
+              color: "#FCFCFC",
+              fontSize: 34,
+              lineHeight: 1.05,
+            }}
+          >
+            Queue
+          </h1>
 
-      <div style={{ marginBottom: 20, display: "flex", gap: 12 }}>
-        <button onClick={scheduleApprovedTweets} disabled={loading} style={primaryButton}>
-          {loading ? "Scheduling..." : "Schedule Approved Tweets"}
-        </button>
+          <p
+            style={{
+              margin: 0,
+              color: "#B9B9C8",
+              fontSize: 15,
+            }}
+          >
+            Review approved tweets waiting to be scheduled and sent live.
+          </p>
+        </div>
 
-        <button onClick={resetQueue} style={dangerSoftButton}>
-          Reset Queue
-        </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={scheduleApprovedTweets}
+            disabled={loading}
+            style={brandButton}
+          >
+            {loading ? "Scheduling..." : "Schedule Approved Tweets"}
+          </button>
+
+          <button onClick={resetQueue} style={softDangerButton}>
+            Reset Queue
+          </button>
+        </div>
       </div>
 
       {error && (
         <div
           style={{
-            marginBottom: 20,
-            padding: 12,
-            borderRadius: 8,
-            background: "#fee2e2",
-            color: "#991b1b",
+            marginBottom: 18,
+            padding: 14,
+            borderRadius: 18,
+            background: "rgba(175,18,60,0.14)",
+            border: "1px solid rgba(175,18,60,0.35)",
+            color: "#FCFCFC",
           }}
         >
           {error}
@@ -133,19 +172,54 @@ export default function QueuePage() {
       )}
 
       {tweets.length === 0 && (
-        <div style={emptyStyle}>No approved tweets waiting in queue.</div>
+        <div style={emptyStateCard}>No approved tweets waiting in queue.</div>
       )}
 
       {tweets.map((tweet) => (
-        <div key={tweet.id} style={tweetCard}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-            <p style={{ margin: 0, whiteSpace: "pre-wrap", color: "#111827", flex: 1 }}>
-              {tweet.tweet_text}
-            </p>
+        <div key={tweet.id} style={queueCard}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 14,
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <p
+                style={{
+                  marginTop: 0,
+                  marginBottom: 14,
+                  whiteSpace: "pre-wrap",
+                  color: "#FCFCFC",
+                  lineHeight: 1.55,
+                }}
+              >
+                {tweet.tweet_text}
+              </p>
+
+              {tweet.media_url && (
+                <div style={{ marginBottom: 10 }}>
+                  {tweet.media_type === "image" ? (
+                    <img
+                      src={tweet.media_url}
+                      alt="Queue media"
+                      style={mediaPreview}
+                    />
+                  ) : (
+                    <video
+                      src={tweet.media_url}
+                      controls
+                      style={mediaPreview}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => deleteDraft(tweet.id)}
-              style={binButton}
+              style={deleteIconButton}
               title="Delete tweet"
             >
               🗑
@@ -157,47 +231,58 @@ export default function QueuePage() {
   );
 }
 
-const tweetCard: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 16,
+const queueCard: React.CSSProperties = {
+  background: "#18181F",
+  border: "1px solid #22242D",
+  borderRadius: 20,
+  padding: 18,
   marginBottom: 14,
+  boxShadow:
+    "0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22)",
 };
 
-const primaryButton: React.CSSProperties = {
-  background: "#111827",
-  color: "#ffffff",
+const emptyStateCard: React.CSSProperties = {
+  background: "#18181F",
+  border: "1px solid #22242D",
+  borderRadius: 20,
+  padding: 18,
+  color: "#787A8D",
+};
+
+const mediaPreview: React.CSSProperties = {
+  maxWidth: 240,
+  borderRadius: 18,
+  border: "1px solid #22242D",
+};
+
+const brandButton: React.CSSProperties = {
+  background: "#6D8CFF",
+  color: "#FCFCFC",
   border: "none",
-  borderRadius: 8,
-  padding: "10px 14px",
+  borderRadius: 9999,
+  padding: "12px 18px",
   cursor: "pointer",
+  fontWeight: 700,
+  boxShadow: "0 10px 30px rgba(109,140,255,0.18)",
 };
 
-const dangerSoftButton: React.CSSProperties = {
-  background: "#fee2e2",
-  color: "#991b1b",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 14px",
+const softDangerButton: React.CSSProperties = {
+  background: "rgba(175,18,60,0.12)",
+  color: "#FCFCFC",
+  border: "1px solid rgba(175,18,60,0.3)",
+  borderRadius: 9999,
+  padding: "12px 18px",
   cursor: "pointer",
+  fontWeight: 600,
 };
 
-const binButton: React.CSSProperties = {
-  background: "#dc2626",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: 8,
-  width: 40,
-  height: 40,
+const deleteIconButton: React.CSSProperties = {
+  background: "rgba(175,18,60,0.16)",
+  color: "#FCFCFC",
+  border: "1px solid rgba(175,18,60,0.3)",
+  borderRadius: 18,
+  width: 46,
+  height: 46,
   cursor: "pointer",
   flexShrink: 0,
-};
-
-const emptyStyle: React.CSSProperties = {
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  padding: 16,
-  color: "#6b7280",
 };
