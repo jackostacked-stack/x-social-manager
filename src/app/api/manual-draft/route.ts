@@ -15,19 +15,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { error } = await supabaseAdmin.from("drafts").insert({
-      tweet_text,
-      status: "approved",
-    });
+    const { data, error } = await supabaseAdmin
+      .from("drafts")
+      .insert({
+        tweet_text,
+        status: "approved",
+      })
+      .select()
+      .single();
 
     if (error) {
       return NextResponse.json(
-        { error: "Failed to create draft" },
+        { error: "Failed to create draft", details: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      draft: data,
+    });
   } catch {
     return NextResponse.json(
       { error: "Something went wrong" },

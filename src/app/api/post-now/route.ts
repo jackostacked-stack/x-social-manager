@@ -13,6 +13,27 @@ const twitter = new TwitterApi({
 
 const client = twitter.readWrite;
 
+async function uploadMediaFromUrl(url: string, mediaType?: string | null) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Failed to download media from storage.");
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const mimeType =
+    mediaType === "video"
+      ? "video/mp4"
+      : response.headers.get("content-type") || "image/jpeg";
+
+  const mediaId = await client.v1.uploadMedia(buffer, {
+    mimeType,
+  });
+
+  return mediaId;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -38,7 +59,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const posted = await client.v1.tweet(tweet.tweet_text);
+    let posted;
+
+    if (tweet.media_url) {
+      const mediaId = await uploadMediaFromUrl(
+        tweet.media_url,
+        tweet.media_type
+      );
+
+      posted = await client.v1.tweet(tweet.tweet_text, {
+        media_ids: mediaId,
+      });
+    } else {
+      posted = await client.v1.tweet(tweet.tweet_text);
+    }
 
     const { error: updateError } = await supabaseAdmin
       .from("drafts")
@@ -62,7 +96,10 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     return NextResponse.json(
       {
-        error: err?.data?.detail || err?.message || "Failed to post tweet now.",
+        error:
+          err?.data?.detail ||
+          err?.message ||
+          "Failed to post tweet now.",
       },
       { status: 500 }
     );

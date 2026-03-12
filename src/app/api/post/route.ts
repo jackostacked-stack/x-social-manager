@@ -13,6 +13,28 @@ const twitter = new TwitterApi({
 
 const client = twitter.readWrite;
 
+async function uploadMediaFromUrl(url: string, mediaType?: string | null) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error("Failed to download media from storage.");
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const mimeType =
+    mediaType === "video"
+      ? "video/mp4"
+      : response.headers.get("content-type") || "image/jpeg";
+
+  const mediaId = await client.v1.uploadMedia(buffer, {
+    mimeType,
+  });
+
+  return mediaId;
+}
+
 async function runPostJob() {
   const now = new Date().toISOString();
 
@@ -31,13 +53,26 @@ async function runPostJob() {
   }
 
   for (const tweet of tweets) {
-    const posted = await client.v2.tweet(tweet.tweet_text);
+    let posted;
+
+    if (tweet.media_url) {
+      const mediaId = await uploadMediaFromUrl(
+        tweet.media_url,
+        tweet.media_type
+      );
+
+      posted = await client.v1.tweet(tweet.tweet_text, {
+        media_ids: mediaId,
+      });
+    } else {
+      posted = await client.v1.tweet(tweet.tweet_text);
+    }
 
     await supabaseAdmin
       .from("drafts")
       .update({
         status: "posted",
-        tweet_id: posted.data.id,
+        tweet_id: posted.id_str,
       })
       .eq("id", tweet.id);
   }

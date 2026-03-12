@@ -14,6 +14,10 @@ export default function ManagerPage() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [manualTweet, setManualTweet] = useState("");
+  const [manualMedia, setManualMedia] = useState<File | null>(null);
+  const [manualMediaPreview, setManualMediaPreview] = useState<string | null>(null);
+  const [manualMediaType, setManualMediaType] = useState<string | null>(null);
 
   async function loadDrafts() {
     try {
@@ -129,30 +133,88 @@ export default function ManagerPage() {
   }
 
   async function uploadMedia(draftId: number, file: File) {
-  setError("");
+    setError("");
 
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("draftId", String(draftId));
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("draftId", String(draftId));
 
-    const res = await fetch("/api/upload-media", {
-      method: "POST",
-      body: formData,
-    });
+      const res = await fetch("/api/upload-media", {
+        method: "POST",
+        body: formData,
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error || "Failed to upload media.");
-      return;
+      if (!res.ok) {
+        setError(data.error || "Failed to upload media.");
+        return;
+      }
+
+      await loadDrafts();
+    } catch {
+      setError("Failed to upload media.");
     }
-
-    await loadDrafts();
-  } catch {
-    setError("Failed to upload media.");
   }
-}
+
+  async function createManualDraft() {
+    setError("");
+
+    try {
+      if (!manualTweet.trim()) {
+        setError("Please write a tweet first.");
+        return;
+      }
+
+      const res = await fetch("/api/manual-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tweet_text: manualTweet,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to create draft.");
+        return;
+      }
+
+      const draftId = data?.draft?.id;
+
+      if (manualMedia && draftId) {
+        const formData = new FormData();
+        formData.append("file", manualMedia);
+        formData.append("draftId", String(draftId));
+
+        const uploadRes = await fetch("/api/upload-media", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok) {
+          setError(uploadData.error || "Tweet created but media upload failed.");
+          await loadDrafts();
+          return;
+        }
+      }
+
+      setManualTweet("");
+      setManualMedia(null);
+      setManualMediaPreview(null);
+      setManualMediaType(null);
+
+      await loadDrafts();
+    } catch {
+      setError("Failed to create draft.");
+    }
+  }
 
   const pending = drafts.filter((d) => d.status === "pending");
   const approved = drafts.filter((d) => d.status === "approved");
@@ -164,64 +226,94 @@ export default function ManagerPage() {
       <h1 style={{ marginTop: 0, color: "#111827" }}>Manager</h1>
 
       <div
-  style={{
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    marginBottom: 24,
-  }}
->
-  <h3 style={{ marginTop: 0 }}>Compose Tweet</h3>
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          padding: 16,
+          marginTop: 16,
+          marginBottom: 24,
+        }}
+      >
+        <h3 style={{ marginTop: 0 }}>Compose Tweet</h3>
 
-  <textarea
-    id="manualTweet"
-    placeholder="Write a tweet..."
-    style={{
-      width: "100%",
-      minHeight: 100,
-      padding: 12,
-      borderRadius: 8,
-      border: "1px solid #d1d5db",
-      marginBottom: 12,
-      resize: "vertical",
-    }}
-  />
+        <textarea
+          value={manualTweet}
+          onChange={(e) => setManualTweet(e.target.value)}
+          placeholder="Write a tweet..."
+          style={{
+            width: "100%",
+            minHeight: 100,
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            marginBottom: 12,
+            resize: "vertical",
+          }}
+        />
 
-  <button
-    onClick={async () => {
-      const text = (
-        document.getElementById("manualTweet") as HTMLTextAreaElement
-      ).value;
+        <div style={{ marginBottom: 12 }}>
+          <input
+            type="file"
+            accept="image/*,video/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setManualMedia(file);
 
-      if (!text) return;
+              if (file) {
+                const previewUrl = URL.createObjectURL(file);
+                setManualMediaPreview(previewUrl);
+                setManualMediaType(file.type.startsWith("video") ? "video" : "image");
+              } else {
+                setManualMediaPreview(null);
+                setManualMediaType(null);
+              }
+            }}
+          />
 
-      await fetch("/api/manual-draft", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tweet_text: text,
-        }),
-      });
+          {manualMediaPreview && (
+            <div style={{ marginTop: 10 }}>
+              {manualMediaType === "image" ? (
+                <img
+                  src={manualMediaPreview}
+                  alt="Manual tweet media preview"
+                  style={{
+                    maxWidth: 220,
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                  }}
+                />
+              ) : (
+                <video
+                  src={manualMediaPreview}
+                  controls
+                  style={{
+                    maxWidth: 220,
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                  }}
+                />
+              )}
+            </div>
+          )}
+        </div>
 
-      location.reload();
-    }}
-    style={{
-      background: "#111827",
-      color: "#fff",
-      border: "none",
-      padding: "10px 16px",
-      borderRadius: 8,
-      cursor: "pointer",
-    }}
-  >
-    Add to Queue
-  </button>
-</div>
-<div
+        <button
+          onClick={createManualDraft}
+          style={{
+            background: "#111827",
+            color: "#fff",
+            border: "none",
+            padding: "10px 16px",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
+        >
+          Add to Queue
+        </button>
+      </div>
+
+      <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
@@ -283,27 +375,104 @@ export default function ManagerPage() {
       {pending.map((draft) => (
         <div key={draft.id} style={tweetCard}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-            <textarea
-  value={draft.tweet_text}
-  onChange={(e) => {
-    const newText = e.target.value;
+            <div style={{ flex: 1 }}>
+              <textarea
+                value={draft.tweet_text}
+                onChange={(e) => {
+                  const newText = e.target.value;
 
-    setDrafts((prev) =>
-      prev.map((d) =>
-        d.id === draft.id ? { ...d, tweet_text: newText } : d
-      )
-    );
-  }}
-  style={{
-    width: "100%",
-    minHeight: 80,
-    padding: 10,
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    marginBottom: 12,
-    resize: "vertical",
-  }}
-/>
+                  setDrafts((prev) =>
+                    prev.map((d) =>
+                      d.id === draft.id ? { ...d, tweet_text: newText } : d
+                    )
+                  );
+                }}
+                style={{
+                  width: "100%",
+                  minHeight: 80,
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "1px solid #d1d5db",
+                  marginBottom: 12,
+                  resize: "vertical",
+                }}
+              />
+
+              <div style={{ marginBottom: 12 }}>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      uploadMedia(draft.id, file);
+                    }
+                  }}
+                />
+
+                {draft.media_url && (
+                  <div style={{ marginTop: 10 }}>
+                    {draft.media_type === "image" ? (
+                      <img
+                        src={draft.media_url}
+                        alt="Tweet media"
+                        style={{
+                          maxWidth: 220,
+                          borderRadius: 8,
+                          border: "1px solid #e5e7eb",
+                        }}
+                      />
+                    ) : (
+                      <video
+                        src={draft.media_url}
+                        controls
+                        style={{
+                          maxWidth: 220,
+                          borderRadius: 8,
+                          border: "1px solid #e5e7eb",
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={async () => {
+                    await fetch("/api/update-draft", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        draftId: draft.id,
+                        tweet_text: draft.tweet_text,
+                      }),
+                    });
+
+                    await loadDrafts();
+                  }}
+                  style={secondaryButton}
+                >
+                  Save
+                </button>
+
+                <button
+                  onClick={() => updateStatus(draft.id, "approved")}
+                  style={primaryButton}
+                >
+                  Approve
+                </button>
+
+                <button
+                  onClick={() => updateStatus(draft.id, "rejected")}
+                  style={secondaryButton}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
 
             <button
               onClick={() => deleteDraft(draft.id)}
@@ -313,79 +482,6 @@ export default function ManagerPage() {
               🗑
             </button>
           </div>
-<div style={{ marginBottom: 12 }}>
-  <input
-    type="file"
-    accept="image/*,video/*"
-    onChange={(e) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        uploadMedia(draft.id, file);
-      }
-    }}
-  />
-
-  {draft.media_url && (
-    <div style={{ marginTop: 10 }}>
-      {draft.media_type === "image" ? (
-        <img
-          src={draft.media_url}
-          alt="Tweet media"
-          style={{
-            maxWidth: 220,
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
-          }}
-        />
-      ) : (
-        <video
-          src={draft.media_url}
-          controls
-          style={{
-            maxWidth: 220,
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
-          }}
-        />
-      )}
-    </div>
-  )}
-</div>
-          <div style={{ display: "flex", gap: 10 }}>
-  <button
-    onClick={async () => {
-      await fetch("/api/update-draft", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          draftId: draft.id,
-          tweet_text: draft.tweet_text,
-        }),
-      });
-
-      await loadDrafts();
-    }}
-    style={secondaryButton}
-  >
-    Save
-  </button>
-
-  <button
-    onClick={() => updateStatus(draft.id, "approved")}
-    style={primaryButton}
-  >
-    Approve
-  </button>
-
-  <button
-    onClick={() => updateStatus(draft.id, "rejected")}
-    style={secondaryButton}
-  >
-    Reject
-  </button>
-</div>
         </div>
       ))}
     </div>
