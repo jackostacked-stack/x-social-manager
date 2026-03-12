@@ -1,23 +1,17 @@
 import "./globals.css";
-import Link from "next/link";
 import Image from "next/image";
+import { Inter } from "next/font/google";
 import LogoutButton from "@/components/LogoutButton";
+import SidebarNav from "@/components/SidebarNav";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata = {
   title: "flow",
   description: "Manage AI-generated tweets",
-};
-
-const navLinkStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "12px 14px",
-  borderRadius: "9999px",
-  color: "#B9B9C8",
-  background: "transparent",
-  border: "1px solid transparent",
-  textDecoration: "none",
 };
 
 async function getAccountProfile() {
@@ -56,7 +50,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body>
+      <body className={inter.className}>
         <div
           style={{
             height: "100vh",
@@ -66,10 +60,11 @@ export default async function RootLayout({
         >
           <aside
             style={{
-              width: 260,
+              width: 268,
               padding: 18,
               borderRight: "1px solid #22242D",
-              background: "#101114",
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0) 100%), #101114",
               display: "flex",
               flexDirection: "column",
             }}
@@ -80,7 +75,7 @@ export default async function RootLayout({
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
-                  padding: "8px 6px 18px 6px",
+                  padding: "6px 6px 18px 6px",
                 }}
               >
                 <Image
@@ -97,33 +92,7 @@ export default async function RootLayout({
                 />
               </div>
 
-              <nav
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <Link href="/" style={navLinkStyle}>
-                  Manager
-                </Link>
-
-                <Link href="/queue" style={navLinkStyle}>
-                  Queue
-                </Link>
-
-                <Link href="/scheduled" style={navLinkStyle}>
-                  Scheduled
-                </Link>
-
-                <Link href="/posted" style={navLinkStyle}>
-                  Posted
-                </Link>
-
-                <Link href="/analytics" style={navLinkStyle}>
-                  Analytics
-                </Link>
-              </nav>
+              <SidebarNav />
             </div>
 
             <div
@@ -143,6 +112,8 @@ export default async function RootLayout({
                   borderRadius: 20,
                   background: "#18181F",
                   border: "1px solid #22242D",
+                  boxShadow:
+                    "0 0 0 1px rgba(255,255,255,0.02), 0 10px 24px rgba(0,0,0,0.24)",
                 }}
               >
                 {account?.avatar_url ? (
@@ -154,7 +125,7 @@ export default async function RootLayout({
                       height: 44,
                       borderRadius: "9999px",
                       objectFit: "cover",
-                      border: "1px solid #22242D",
+                      border: "1px solid #2A2D38",
                       flexShrink: 0,
                     }}
                   />
@@ -187,6 +158,7 @@ export default async function RootLayout({
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      letterSpacing: "-0.01em",
                     }}
                   >
                     {account?.name || "flow account"}
