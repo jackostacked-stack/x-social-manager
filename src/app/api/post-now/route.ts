@@ -21,10 +21,16 @@ async function uploadMediaFromUrl(client: TwitterApi, url: string) {
     throw new Error("Failed to download media");
   }
 
+  const contentType =
+    res.headers.get("content-type") || "image/jpeg";
+
   const arrayBuffer = await res.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  const mediaId = await client.v1.uploadMedia(buffer);
+  const mediaId = await client.v1.uploadMedia(buffer, {
+    mimeType: contentType,
+  });
+
   return mediaId;
 }
 
