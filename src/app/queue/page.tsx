@@ -485,12 +485,12 @@ const title={margin:0,fontSize:34,color:"#FCFCFC"};
 
 const subtitle={margin:0,color:"#B9B9C8"};
 
-const queue={
-display:"flex",
-flexDirection:"column",
-gap:8,
-maxHeight:"70vh",
-overflowY:"auto"
+const queue: React.CSSProperties = {
+display: "flex",
+flexDirection: "column",
+gap: 8,
+maxHeight: "70vh",
+overflowY: "auto"
 };
 
 const row={
