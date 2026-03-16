@@ -1,59 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabaseAdmin, getActiveAccount } from "@/lib/activeAccount";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    const activeAccount = await getActiveAccount();
     const body = await req.json();
-    const { scope } = body;
+    const scope = body.scope;
 
     if (!scope) {
       return NextResponse.json(
-        { error: "scope is required." },
+        { error: "Missing scope" },
         { status: 400 }
       );
     }
 
+    let query = supabaseAdmin
+      .from("drafts")
+      .delete()
+      .eq("account_id", activeAccount.id);
+
     if (scope === "manager") {
-      const { error } = await supabaseAdmin
-        .from("drafts")
-        .delete()
-        .eq("status", "pending");
-
-      if (error) {
-        return NextResponse.json(
-          { error: "Failed to reset manager." },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ success: true });
+      query = query.in("status", ["pending", "rejected"]);
+    } else if (scope === "queue") {
+      query = query.eq("status", "approved");
+    } else {
+      return NextResponse.json(
+        { error: "Invalid scope" },
+        { status: 400 }
+      );
     }
 
-    if (scope === "queue") {
-      const { error } = await supabaseAdmin
-        .from("drafts")
-        .delete()
-        .eq("status", "approved");
+    const result = await query;
 
-      if (error) {
-        return NextResponse.json(
-          { error: "Failed to reset queue." },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({ success: true });
+    if (result.error) {
+      return NextResponse.json(
+        { error: result.error.message },
+        { status: 500 }
+      );
     }
 
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
     return NextResponse.json(
-      { error: "Invalid scope." },
-      { status: 400 }
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Something went wrong while resetting drafts." },
+      { error: err?.message || "Failed to reset drafts" },
       { status: 500 }
     );
   }

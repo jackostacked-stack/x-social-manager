@@ -1,26 +1,29 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabaseAdmin, getActiveAccount } from "@/lib/activeAccount";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    const { error } = await supabaseAdmin
+    const activeAccount = await getActiveAccount();
+
+    const result = await supabaseAdmin
       .from("drafts")
       .delete()
+      .eq("account_id", activeAccount.id)
       .eq("status", "scheduled");
 
-    if (error) {
+    if (result.error) {
       return NextResponse.json(
-        { error: "Failed to reset scheduled tweets.", details: error.message },
+        { error: result.error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err: any) {
     return NextResponse.json(
-      { error: "Something went wrong while resetting scheduled tweets." },
+      { error: err?.message || "Failed to reset scheduled drafts" },
       { status: 500 }
     );
   }

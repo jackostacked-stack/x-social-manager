@@ -1,62 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabaseAdmin, getActiveAccount } from "@/lib/activeAccount";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    const activeAccount = await getActiveAccount();
     const body = await req.json();
-    const { draftId, scheduled_for } = body;
+
+    const draftId = body.draftId;
+    const scheduled_for = body.scheduled_for;
 
     if (!draftId || !scheduled_for) {
       return NextResponse.json(
-        { error: "draftId and scheduled_for are required." },
+        { error: "Missing draftId or scheduled_for" },
         { status: 400 }
       );
     }
 
-    const parsedDate = new Date(scheduled_for);
+    const iso = new Date(scheduled_for).toISOString();
 
-    if (isNaN(parsedDate.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid scheduled_for date." },
-        { status: 400 }
-      );
-    }
-
-    const now = new Date();
-
-    if (parsedDate.getTime() <= now.getTime()) {
-      return NextResponse.json(
-        { error: "Scheduled time must be in the future." },
-        { status: 400 }
-      );
-    }
-
-    const { data, error } = await supabaseAdmin
+    const result = await supabaseAdmin
       .from("drafts")
-      .update({
-        scheduled_for: parsedDate.toISOString(),
-        status: "scheduled",
-      })
+      .update({ scheduled_for: iso })
       .eq("id", draftId)
+      .eq("account_id", activeAccount.id)
+      .eq("status", "scheduled")
       .select()
       .single();
 
-    if (error) {
+    if (result.error) {
       return NextResponse.json(
-        { error: "Failed to update scheduled tweet.", details: error.message },
+        { error: result.error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      draft: data,
+      draft: result.data,
     });
-  } catch {
+  } catch (err: any) {
     return NextResponse.json(
-      { error: "Something went wrong while updating the scheduled time." },
+      { error: err?.message || "Failed to update scheduled draft" },
       { status: 500 }
     );
   }
