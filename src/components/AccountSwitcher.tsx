@@ -14,6 +14,8 @@ export default function AccountSwitcher() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [active, setActive] = useState<Account | null>(null);
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [error, setError] = useState("");
 
   async function loadAccounts() {
     try {
@@ -36,15 +38,31 @@ export default function AccountSwitcher() {
   }, []);
 
   async function switchAccount(id: string) {
-    await fetch("/api/accounts/active", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ account_id: id }),
-    });
+    try {
+      setSwitching(true);
+      setError("");
 
-    window.location.reload();
+      const res = await fetch("/api/accounts/active", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ account_id: id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to switch account");
+        setSwitching(false);
+        return;
+      }
+
+      window.location.reload();
+    } catch {
+      setError("Failed to switch account");
+      setSwitching(false);
+    }
   }
 
   function connectX() {
@@ -84,6 +102,8 @@ export default function AccountSwitcher() {
 
       {open ? (
         <div style={menu}>
+          {error ? <div style={errorText}>{error}</div> : null}
+
           {accounts.length === 0 ? (
             <div style={emptyState}>No X accounts connected yet.</div>
           ) : null}
@@ -96,8 +116,16 @@ export default function AccountSwitcher() {
               <button
                 key={account.id}
                 type="button"
-                style={menuItem}
+                style={{
+                  ...menuItem,
+                  background: account.is_active ? "rgba(109,140,255,0.12)" : "transparent",
+                  border: account.is_active
+                    ? "1px solid rgba(109,140,255,0.22)"
+                    : "1px solid transparent",
+                  opacity: switching ? 0.7 : 1,
+                }}
                 onClick={() => switchAccount(account.id)}
+                disabled={switching}
               >
                 <div style={menuLeft}>
                   {account.avatar_url ? (
@@ -117,7 +145,7 @@ export default function AccountSwitcher() {
                 </div>
 
                 {account.is_active ? (
-                  <div style={activeDot}>●</div>
+                    <div style={activeDot}>●</div>
                 ) : null}
               </button>
             );
@@ -207,6 +235,12 @@ const menu: React.CSSProperties = {
   zIndex: 50,
 };
 
+const errorText: React.CSSProperties = {
+  color: "#ff8f8f",
+  fontSize: 12,
+  padding: "4px 6px 10px 6px",
+};
+
 const emptyState: React.CSSProperties = {
   color: "#B9B9C8",
   fontSize: 13,
@@ -221,8 +255,7 @@ const menuItem: React.CSSProperties = {
   padding: 10,
   borderRadius: 12,
   cursor: "pointer",
-  background: "transparent",
-  border: "none",
+  border: "1px solid transparent",
   color: "#FCFCFC",
 };
 
