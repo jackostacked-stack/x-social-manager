@@ -10,11 +10,11 @@ const supabase = createClient(
 
 export async function POST(req) {
   try {
-    const { accountId } = await req.json();
+    const { account_id } = await req.json();
 
-    if (!accountId) {
+    if (!account_id) {
       return NextResponse.json(
-        { error: "Missing accountId" },
+        { error: "Missing account_id" },
         { status: 400 }
       );
     }
@@ -29,7 +29,7 @@ export async function POST(req) {
     await supabase
       .from("accounts")
       .update({ is_active: true })
-      .eq("id", accountId);
+      .eq("id", account_id);
 
     return NextResponse.json({ success: true });
 
