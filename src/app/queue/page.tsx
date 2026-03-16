@@ -12,41 +12,111 @@ type Draft = {
 
 export default function QueuePage() {
   const [tweets, setTweets] = useState<Draft[]>([]);
+  const [selectedTweets, setSelectedTweets] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [minDelay, setMinDelay] = useState(35);
+  const [maxDelay, setMaxDelay] = useState(55);
+
+  const [startTime, setStartTime] = useState("");
 
   async function loadQueue() {
     try {
       const res = await fetch("/api/drafts");
       const data = await res.json();
+
       const approved = (data.drafts || []).filter(
         (d: Draft) => d.status === "approved"
       );
+
       setTweets(approved);
     } catch {
       setError("Failed to load queue.");
     }
   }
 
+  async function loadPreset() {
+    try {
+      const res = await fetch("/api/scheduler-settings");
+      const data = await res.json();
+
+      if (data.settings) {
+        setMinDelay(data.settings.min_delay_minutes);
+        setMaxDelay(data.settings.max_delay_minutes);
+      }
+    } catch {}
+  }
+
+  async function savePreset() {
+    await fetch("/api/scheduler-settings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        min_delay: minDelay,
+        max_delay: maxDelay,
+      }),
+    });
+  }
+
   useEffect(() => {
     loadQueue();
+    loadPreset();
   }, []);
 
-  async function scheduleApprovedTweets() {
+  function toggleTweet(id: number) {
+    if (selectedTweets.includes(id)) {
+      setSelectedTweets(selectedTweets.filter((t) => t !== id));
+    } else {
+      setSelectedTweets([...selectedTweets, id]);
+    }
+  }
+
+  function selectAll() {
+    if (selectedTweets.length === tweets.length) {
+      setSelectedTweets([]);
+    } else {
+      setSelectedTweets(tweets.map((t) => t.id));
+    }
+  }
+
+  async function scheduleSelectedTweets() {
+    if (!startTime) {
+      setError("Please select a start time.");
+      return;
+    }
+
+    if (selectedTweets.length === 0) {
+      setError("Select tweets to schedule.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
       const res = await fetch("/api/schedule", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tweet_ids: selectedTweets,
+          start_time: startTime,
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to schedule tweets.");
+        setError(data.error || "Scheduling failed.");
         return;
       }
+
+      setSelectedTweets([]);
+      setStartTime("");
 
       await loadQueue();
     } catch {
@@ -57,10 +127,8 @@ export default function QueuePage() {
   }
 
   async function deleteDraft(id: number) {
-    setError("");
-
     try {
-      const res = await fetch("/api/drafts/delete", {
+      await fetch("/api/drafts/delete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,24 +136,13 @@ export default function QueuePage() {
         body: JSON.stringify({ draftId: id }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Failed to delete tweet.");
-        return;
-      }
-
       await loadQueue();
-    } catch {
-      setError("Failed to delete tweet.");
-    }
+    } catch {}
   }
 
   async function resetQueue() {
-    setError("");
-
     try {
-      const res = await fetch("/api/drafts/reset", {
+      await fetch("/api/drafts/reset", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,61 +150,71 @@ export default function QueuePage() {
         body: JSON.stringify({ scope: "queue" }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Failed to reset queue.");
-        return;
-      }
-
       await loadQueue();
-    } catch {
-      setError("Failed to reset queue.");
-    }
+    } catch {}
   }
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              marginTop: 0,
-              marginBottom: 8,
-              color: "#FCFCFC",
-              fontSize: 34,
-              lineHeight: 1.05,
-            }}
-          >
-            Queue
-          </h1>
+      <h1 style={{ color: "#FCFCFC", marginTop: 0 }}>Queue</h1>
 
-          <p
-            style={{
-              margin: 0,
-              color: "#B9B9C8",
-              fontSize: 15,
-            }}
-          >
-            Review approved tweets waiting to be scheduled and sent live.
-          </p>
+      {/* Scheduling preset */}
+
+      <div style={presetCard}>
+        <h3 style={{ marginTop: 0, color: "#FCFCFC" }}>Scheduling Preset</h3>
+
+        <div style={{ display: "flex", gap: 16 }}>
+          <div>
+            <label style={label}>Min Delay</label>
+            <input
+              type="number"
+              value={minDelay}
+              onChange={(e) => setMinDelay(Number(e.target.value))}
+              style={input}
+            />
+          </div>
+
+          <div>
+            <label style={label}>Max Delay</label>
+            <input
+              type="number"
+              value={maxDelay}
+              onChange={(e) => setMaxDelay(Number(e.target.value))}
+              style={input}
+            />
+          </div>
+
+          <button onClick={savePreset} style={brandButton}>
+            Save Preset
+          </button>
         </div>
+      </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {/* Scheduler */}
+
+      <div style={presetCard}>
+        <h3 style={{ marginTop: 0, color: "#FCFCFC" }}>
+          Schedule Selected Tweets
+        </h3>
+
+        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <input
+            type="datetime-local"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            style={input}
+          />
+
           <button
-            onClick={scheduleApprovedTweets}
+            onClick={scheduleSelectedTweets}
             disabled={loading}
             style={brandButton}
           >
-            {loading ? "Scheduling..." : "Schedule Approved Tweets"}
+            {loading ? "Scheduling..." : "Schedule"}
+          </button>
+
+          <button onClick={selectAll} style={softButton}>
+            Select All
           </button>
 
           <button onClick={resetQueue} style={softDangerButton}>
@@ -156,62 +223,26 @@ export default function QueuePage() {
         </div>
       </div>
 
-      {error && (
-        <div
-          style={{
-            marginBottom: 18,
-            padding: 14,
-            borderRadius: 18,
-            background: "rgba(175,18,60,0.14)",
-            border: "1px solid rgba(175,18,60,0.35)",
-            color: "#FCFCFC",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {tweets.length === 0 && (
-        <div style={emptyStateCard}>No approved tweets waiting in queue.</div>
-      )}
+      {error && <div style={errorBox}>{error}</div>}
 
       {tweets.map((tweet) => (
         <div key={tweet.id} style={queueCard}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 14,
-            }}
-          >
+          <div style={{ display: "flex", gap: 12 }}>
+            <input
+              type="checkbox"
+              checked={selectedTweets.includes(tweet.id)}
+              onChange={() => toggleTweet(tweet.id)}
+            />
+
             <div style={{ flex: 1 }}>
-              <p
-                style={{
-                  marginTop: 0,
-                  marginBottom: 14,
-                  whiteSpace: "pre-wrap",
-                  color: "#FCFCFC",
-                  lineHeight: 1.55,
-                }}
-              >
-                {tweet.tweet_text}
-              </p>
+              <p style={tweetText}>{tweet.tweet_text}</p>
 
               {tweet.media_url && (
-                <div style={{ marginBottom: 10 }}>
+                <div>
                   {tweet.media_type === "image" ? (
-                    <img
-                      src={tweet.media_url}
-                      alt="Queue media"
-                      style={mediaPreview}
-                    />
+                    <img src={tweet.media_url} style={mediaPreview} />
                   ) : (
-                    <video
-                      src={tweet.media_url}
-                      controls
-                      style={mediaPreview}
-                    />
+                    <video src={tweet.media_url} controls style={mediaPreview} />
                   )}
                 </div>
               )}
@@ -220,7 +251,6 @@ export default function QueuePage() {
             <button
               onClick={() => deleteDraft(tweet.id)}
               style={deleteIconButton}
-              title="Delete tweet"
             >
               🗑
             </button>
@@ -231,22 +261,40 @@ export default function QueuePage() {
   );
 }
 
+const presetCard: React.CSSProperties = {
+  background: "#18181F",
+  border: "1px solid #22242D",
+  borderRadius: 20,
+  padding: 20,
+  marginBottom: 20,
+};
+
 const queueCard: React.CSSProperties = {
   background: "#18181F",
   border: "1px solid #22242D",
   borderRadius: 20,
   padding: 18,
   marginBottom: 14,
-  boxShadow:
-    "0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22)",
 };
 
-const emptyStateCard: React.CSSProperties = {
-  background: "#18181F",
-  border: "1px solid #22242D",
-  borderRadius: 20,
-  padding: 18,
+const input: React.CSSProperties = {
+  padding: 10,
+  borderRadius: 10,
+  border: "1px solid #2A2D38",
+  background: "#101114",
+  color: "#FCFCFC",
+};
+
+const label: React.CSSProperties = {
   color: "#787A8D",
+  fontSize: 13,
+};
+
+const tweetText: React.CSSProperties = {
+  marginTop: 0,
+  marginBottom: 12,
+  whiteSpace: "pre-wrap",
+  color: "#FCFCFC",
 };
 
 const mediaPreview: React.CSSProperties = {
@@ -260,10 +308,18 @@ const brandButton: React.CSSProperties = {
   color: "#FCFCFC",
   border: "none",
   borderRadius: 9999,
-  padding: "12px 18px",
+  padding: "10px 18px",
   cursor: "pointer",
   fontWeight: 700,
-  boxShadow: "0 10px 30px rgba(109,140,255,0.18)",
+};
+
+const softButton: React.CSSProperties = {
+  background: "#22242D",
+  color: "#FCFCFC",
+  border: "none",
+  borderRadius: 9999,
+  padding: "10px 18px",
+  cursor: "pointer",
 };
 
 const softDangerButton: React.CSSProperties = {
@@ -271,9 +327,8 @@ const softDangerButton: React.CSSProperties = {
   color: "#FCFCFC",
   border: "1px solid rgba(175,18,60,0.3)",
   borderRadius: 9999,
-  padding: "12px 18px",
+  padding: "10px 18px",
   cursor: "pointer",
-  fontWeight: 600,
 };
 
 const deleteIconButton: React.CSSProperties = {
@@ -281,8 +336,16 @@ const deleteIconButton: React.CSSProperties = {
   color: "#FCFCFC",
   border: "1px solid rgba(175,18,60,0.3)",
   borderRadius: 18,
-  width: 46,
-  height: 46,
+  width: 42,
+  height: 42,
   cursor: "pointer",
-  flexShrink: 0,
+};
+
+const errorBox: React.CSSProperties = {
+  marginBottom: 20,
+  padding: 14,
+  borderRadius: 14,
+  background: "rgba(175,18,60,0.14)",
+  border: "1px solid rgba(175,18,60,0.35)",
+  color: "#FCFCFC",
 };

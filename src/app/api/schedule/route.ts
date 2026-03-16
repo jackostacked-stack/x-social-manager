@@ -1,73 +1,75 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const runtime = "nodejs";
-
-function generateTimes(count: number) {
-  const startHour = 13;
-  const endHour = 24;
-  const minGap = 60;
-
-  const now = new Date();
-
-  const start = new Date(now);
-  start.setHours(startHour, 0, 0, 0);
-
-  const end = new Date(now);
-  end.setHours(endHour, 0, 0, 0);
-
-  const startMinutes = start.getHours() * 60;
-  const endMinutes = end.getHours() * 60;
-
-  const times: number[] = [];
-
-  while (times.length < count) {
-    const t =
-      Math.floor(Math.random() * (endMinutes - startMinutes)) + startMinutes;
-
-    if (times.every((x) => Math.abs(x - t) >= minGap)) {
-      times.push(t);
-    }
-  }
-
-  return times.sort((a, b) => a - b);
+function randomDelay(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export async function POST() {
-  const { data: drafts } = await supabaseAdmin
-    .from("drafts")
-    .select("*")
-    .eq("status", "approved");
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { tweet_ids, start_time } = body;
 
-  if (!drafts || drafts.length === 0) {
-    return NextResponse.json({ success: true });
-  }
-
-  const times = generateTimes(drafts.length);
-
-  const now = new Date();
-
-  for (let i = 0; i < drafts.length; i++) {
-    const minutes = times[i];
-    const hour = Math.floor(minutes / 60);
-    const minute = minutes % 60;
-
-    const date = new Date();
-
-    date.setHours(hour, minute, 0, 0);
-
-    if (date < now) {
-      date.setDate(date.getDate() + 1);
+    if (!tweet_ids || tweet_ids.length === 0) {
+      return NextResponse.json(
+        { error: "No tweets selected." },
+        { status: 400 }
+      );
     }
 
-    await supabaseAdmin
-      .from("drafts")
-      .update({
-        status: "scheduled",
-        scheduled_for: date.toISOString(),
-      })
-      .eq("id", drafts[i].id);
-  }
+    if (!start_time) {
+      return NextResponse.json(
+        { error: "Start time required." },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json({ success: true });
+    // Load preset
+    const { data: settings } = await supabaseAdmin
+      .from("scheduler_settings")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    const minDelay = settings?.min_delay_minutes ?? 35;
+    const maxDelay = settings?.max_delay_minutes ?? 55;
+
+    let currentTime = new Date(start_time);
+
+    const updates = [];
+
+    for (const id of tweet_ids) {
+      updates.push({
+        id,
+        scheduled_for: currentTime.toISOString(),
+        status: "scheduled",
+      });
+
+      const delay = randomDelay(minDelay, maxDelay);
+
+      currentTime = new Date(
+        currentTime.getTime() + delay * 60000
+      );
+    }
+
+    for (const update of updates) {
+      await supabaseAdmin
+        .from("drafts")
+        .update({
+          scheduled_for: update.scheduled_for,
+          status: update.status,
+        })
+        .eq("id", update.id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      scheduled: updates.length,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to schedule tweets." },
+      { status: 500 }
+    );
+  }
 }
