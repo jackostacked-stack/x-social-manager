@@ -1,132 +1,147 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { Buffer } from "node:buffer";
 import { TwitterApi } from "twitter-api-v2";
+import { supabaseAdmin } from "@/lib/activeAccount";
 
 export const runtime = "nodejs";
 
-const twitter = new TwitterApi({
-  appKey: process.env.X_API_KEY!,
-  appSecret: process.env.X_API_SECRET!,
-  accessToken: process.env.X_ACCESS_TOKEN!,
-  accessSecret: process.env.X_ACCESS_TOKEN_SECRET!,
-});
-
-const client = twitter.readWrite;
-
-async function uploadMediaFromUrl(url: string, mediaType?: string | null) {
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error("Failed to download media from storage.");
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  const mimeType =
-    mediaType === "video"
-      ? "video/mp4"
-      : response.headers.get("content-type") || "image/jpeg";
-
-  const mediaId = await client.v1.uploadMedia(buffer, {
-    mimeType,
+function getTwitterClientForAccount(account: any) {
+  return new TwitterApi({
+    appKey: process.env.X_API_KEY as string,
+    appSecret: process.env.X_API_SECRET as string,
+    accessToken: account.oauth_token,
+    accessSecret: account.oauth_token_secret,
   });
-
-  return mediaId;
 }
 
-async function runPostJob() {
-  const now = new Date().toISOString();
+async function uploadMediaFromUrl(client: TwitterApi, url: string) {
+  const res = await fetch(url);
 
-  const { data: tweets, error } = await supabaseAdmin
-    .from("drafts")
-    .select("*")
-    .eq("status", "scheduled")
-    .lte("scheduled_for", now);
-
-  if (error) {
-    return { error: error.message };
+  if (!res.ok) {
+    throw new Error("Failed to download media");
   }
 
-  if (!tweets || tweets.length === 0) {
-    return { success: true, message: "No tweets ready to post." };
-  }
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
 
-  for (const tweet of tweets) {
-    let posted;
-
-    if (tweet.media_url) {
-      const mediaId = await uploadMediaFromUrl(
-        tweet.media_url,
-        tweet.media_type
-      );
-
-      posted = await client.v2.tweet({
-        text: tweet.tweet_text,
-        media: {
-          media_ids: [mediaId],
-        },
-      });
-    } else {
-      posted = await client.v2.tweet({
-        text: tweet.tweet_text,
-      });
-    }
-
-    await supabaseAdmin
-      .from("drafts")
-      .update({
-        status: "posted",
-        tweet_id: posted.data.id,
-      })
-      .eq("id", tweet.id);
-  }
-
-  return {
-    success: true,
-    posted: tweets.length,
-  };
+  const mediaId = await client.v1.uploadMedia(buffer);
+  return mediaId;
 }
 
 export async function POST() {
   try {
-    const result = await runPostJob();
+    const nowIso = new Date().toISOString();
 
-    if ("error" in result) {
-      return NextResponse.json(result, { status: 500 });
+    const draftsResult = await supabaseAdmin
+      .from("drafts")
+      .select("*")
+      .eq("status", "scheduled")
+      .lte("scheduled_for", nowIso)
+      .not("account_id", "is", null)
+      .order("scheduled_for", { ascending: true });
+
+    if (draftsResult.error) {
+      return NextResponse.json(
+        { error: draftsResult.error.message },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(result);
-  } catch (err: any) {
-    return NextResponse.json(
-      {
-        error:
-          err?.data?.detail ||
-          err?.message ||
-          "Posting failed.",
-      },
-      { status: 500 }
-    );
-  }
-}
+    const drafts = draftsResult.data || [];
 
-export async function GET() {
-  try {
-    const result = await runPostJob();
-
-    if ("error" in result) {
-      return NextResponse.json(result, { status: 500 });
+    if (drafts.length === 0) {
+      return NextResponse.json({
+        success: true,
+        posted: 0,
+        failed: 0,
+        results: [],
+      });
     }
 
-    return NextResponse.json(result);
+    const results: Array<{
+      draftId: number;
+      success: boolean;
+      tweetId?: string;
+      error?: string;
+    }> = [];
+
+    for (const draft of drafts) {
+      try {
+        const accountResult = await supabaseAdmin
+          .from("accounts")
+          .select("*")
+          .eq("id", draft.account_id)
+          .single();
+
+        if (accountResult.error || !accountResult.data) {
+          results.push({
+            draftId: draft.id,
+            success: false,
+            error: "Account not found for draft",
+          });
+          continue;
+        }
+
+        const account = accountResult.data;
+        const twitter = getTwitterClientForAccount(account);
+
+        let tweetResult: any;
+
+        if (draft.media_url) {
+          const mediaId = await uploadMediaFromUrl(twitter, draft.media_url);
+
+          tweetResult = await twitter.v2.tweet({
+            text: draft.tweet_text,
+            media: {
+              media_ids: [mediaId],
+            },
+          });
+        } else {
+          tweetResult = await twitter.v2.tweet({
+            text: draft.tweet_text,
+          });
+        }
+
+        const updateResult = await supabaseAdmin
+          .from("drafts")
+          .update({
+            status: "posted",
+            tweet_id: tweetResult.data.id,
+          })
+          .eq("id", draft.id);
+
+        if (updateResult.error) {
+          results.push({
+            draftId: draft.id,
+            success: false,
+            error: updateResult.error.message,
+          });
+          continue;
+        }
+
+        results.push({
+          draftId: draft.id,
+          success: true,
+          tweetId: tweetResult.data.id,
+        });
+      } catch (err: any) {
+        results.push({
+          draftId: draft.id,
+          success: false,
+          error: err?.message || "Failed to post scheduled draft",
+        });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      posted: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
+    });
   } catch (err: any) {
     return NextResponse.json(
-      {
-        error:
-          err?.data?.detail ||
-          err?.message ||
-          "Posting failed.",
-      },
+      { error: err?.message || "Failed to process scheduled tweets" },
       { status: 500 }
     );
   }

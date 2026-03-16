@@ -1,12 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string
+);
+
+async function getActiveAccount() {
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error("No active account selected");
+  }
+
+  return data;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const activeAccount = await getActiveAccount();
     const body = await req.json();
-    const { tweet_text } = body;
+    const tweet_text = body.tweet_text;
 
     if (!tweet_text) {
       return NextResponse.json(
@@ -15,18 +39,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("drafts")
       .insert({
         tweet_text,
         status: "approved",
+        account_id: activeAccount.id,
       })
       .select()
       .single();
 
     if (error) {
       return NextResponse.json(
-        { error: "Failed to create draft", details: error.message },
+        { error: error.message },
         { status: 500 }
       );
     }
@@ -35,9 +60,9 @@ export async function POST(req: NextRequest) {
       success: true,
       draft: data,
     });
-  } catch {
+  } catch (err: any) {
     return NextResponse.json(
-      { error: "Something went wrong" },
+      { error: err?.message || "Something went wrong" },
       { status: 500 }
     );
   }
