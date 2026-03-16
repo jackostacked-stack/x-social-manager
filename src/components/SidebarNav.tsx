@@ -20,6 +20,7 @@ export default function SidebarNav() {
         display: "flex",
         flexDirection: "column",
         gap: 8,
+        marginTop: 4,
       }}
     >
       {items.map((item) => {
@@ -39,22 +40,26 @@ export default function SidebarNav() {
               fontSize: 14,
               fontWeight: 600,
               letterSpacing: "-0.01em",
-              color: active ? "#FCFCFC" : "#B9B9C8",
-              background: active ? "rgba(109,140,255,0.18)" : "transparent",
+              color: active ? "#FFFFFF" : "#B9B9C8",
+              background: active
+                ? "linear-gradient(180deg, rgba(109,140,255,0.25), rgba(109,140,255,0.08))"
+                : "transparent",
               border: active
-                ? "1px solid rgba(109,140,255,0.26)"
+                ? "1px solid rgba(109,140,255,0.35)"
                 : "1px solid transparent",
               boxShadow: active
-                ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 24px rgba(109,140,255,0.12)"
+                ? "0 0 18px rgba(109,140,255,0.25), inset 0 1px 0 rgba(255,255,255,0.04)"
                 : "none",
+              transform: active ? "translateY(-1px)" : "none",
               transition:
-                "background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease",
+                "all 0.18s ease, background 0.18s ease, border-color 0.18s ease",
             }}
             onMouseEnter={(e) => {
               if (!active) {
                 e.currentTarget.style.background = "#18181F";
                 e.currentTarget.style.border = "1px solid #22242D";
-                e.currentTarget.style.color = "#FCFCFC";
+                e.currentTarget.style.color = "#FFFFFF";
+                e.currentTarget.style.transform = "translateY(-1px)";
               }
             }}
             onMouseLeave={(e) => {
@@ -62,10 +67,11 @@ export default function SidebarNav() {
                 e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.border = "1px solid transparent";
                 e.currentTarget.style.color = "#B9B9C8";
+                e.currentTarget.style.transform = "none";
               }
             }}
           >
-            <span>{item.label}</span>
+            {item.label}
           </Link>
         );
       })}
