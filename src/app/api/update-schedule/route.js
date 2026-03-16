@@ -6,10 +6,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function POST(req, Request) {
+function randomDelay(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export async function POST(req) {
   try {
     const body = await req.json();
-    const { tweet_ids, start_time } = body;
+
+    const tweet_ids = body.tweet_ids;
+    const start_time = body.start_time;
 
     if (!tweet_ids || !start_time) {
       return NextResponse.json(
@@ -18,24 +24,46 @@ export async function POST(req, Request) {
       );
     }
 
-    let current = new Date(start_time);
+    // load scheduler preset
+    const { data: settings } = await supabase
+      .from("scheduler_settings")
+      .select("*")
+      .limit(1)
+      .single();
 
-    for (const id of tweet_ids) {
-      await supabase
+    const minDelay = settings?.min_delay_minutes ?? 35;
+    const maxDelay = settings?.max_delay_minutes ?? 55;
+
+    let currentTime = new Date(start_time);
+
+    for (const tweetId of tweet_ids) {
+      const { error } = await supabase
         .from("drafts")
         .update({
           status: "scheduled",
-          scheduled_for: current.toISOString(),
+          scheduled_for: currentTime.toISOString(),
         })
-        .eq("id", id);
+        .eq("id", tweetId);
 
-      current = new Date(current.getTime() + 30 * 60000); // fallback delay
+      if (error) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 500 }
+        );
+      }
+
+      const delayMinutes = randomDelay(minDelay, maxDelay);
+
+      currentTime = new Date(
+        currentTime.getTime() + delayMinutes * 60000
+      );
     }
 
     return NextResponse.json({ success: true });
+
   } catch (err) {
     return NextResponse.json(
-      { error: "Failed to update schedule" },
+      { error: "Failed to schedule tweets" },
       { status: 500 }
     );
   }
