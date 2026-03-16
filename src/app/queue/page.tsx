@@ -514,7 +514,7 @@ const checkbox={width:18,height:18,accentColor:"#6D8CFF"};
 
 const drag={cursor:"grab",color:"#888"};
 
-const media={
+const media: React.CSSProperties = {
 width:46,
 height:46,
 borderRadius:10,
@@ -549,21 +549,21 @@ padding:"10px 18px",
 cursor:"pointer"
 };
 
-const overlay={
-position:"fixed",
-inset:0,
-background:"rgba(0,0,0,0.6)",
-display:"flex",
-alignItems:"center",
-justifyContent:"center"
+const overlay: React.CSSProperties = {
+position: "fixed",
+inset: 0,
+background: "rgba(0,0,0,0.6)",
+display: "flex",
+alignItems: "center",
+justifyContent: "center"
 };
 
-const modal={
-background:"#18181F",
-border:"1px solid #22242D",
-borderRadius:18,
-padding:24,
-width:380
+const modal: React.CSSProperties = {
+background: "#18181F",
+border: "1px solid #22242D",
+borderRadius: 18,
+padding: 24,
+width: 380
 };
 
 const modalButtons={display:"flex",gap:10,marginTop:18};
